@@ -101,7 +101,7 @@ std::vector<Token> Lexer::tokenize() {
     while(!isAtEnd()){
         if(peek()==' ') skipWhitespace();
         if(!isAtEnd()){
-            if(isDigit()) tokens.push_back(scanNumber());
+            if(isDigit()||peek()=='.') tokens.push_back(scanNumber());
             else{
                 Token cur_token;
                 switch(peek()){
@@ -157,12 +157,28 @@ bool Lexer::isDigit() const{
 
 //scanNumber函数负责扫描一个数字，并返回一个Token对象，表示这个数字的值。
 Token Lexer::scanNumber() {
-    double val=advance()-'0';
-    while(isDigit()){
-        val*=10;
-        val+=(advance()-'0');
+    std::string number_text;
+    bool has_dot=false;
+    bool has_digit=false;
+
+    while(isDigit()||peek()=='.'){
+        if(peek()=='.'){
+            if(has_dot) break;
+            has_dot=true;
+            number_text+=advance();
+        }else{
+            has_digit=true;
+            number_text+=advance();
+        }
     }
-    return {TokenType::Number, val, "val"};
+
+    if(!has_digit){
+        throw std::runtime_error("expected digit");
+    }
+
+    //std::stod函数将字符串转换为double类型的数值。
+    double val=std::stod(number_text);
+    return {TokenType::Number, val, number_text};
 }
 
 Parser::Parser(const std::vector<Token>& tokens)
@@ -270,20 +286,25 @@ double Parser::parseFactor() {
 int main() {
     std::string line;
 
-    std::cout << "Enter expression: ";
-    std::getline(std::cin, line);
+    while(true){
+        std::cout << "Enter expression (empty/q to quit): ";
+        std::getline(std::cin, line);
 
-    try {
-        Lexer lexer(line);
-        std::vector<Token> tokens = lexer.tokenize();
+        if(line.empty()||line=="q"||line=="quit"){
+            break;
+        }
 
-        Parser parser(tokens);
-        double result = parser.parse();
+        try {
+            Lexer lexer(line);
+            std::vector<Token> tokens = lexer.tokenize();
 
-        std::cout << "Result: " << result << '\n';
-    } catch (const std::exception& error) {
-        std::cerr << "Error: " << error.what() << '\n';
-        return 1;
+            Parser parser(tokens);
+            double result = parser.parse();
+
+            std::cout << "Result: " << result << '\n';
+        } catch (const std::exception& error) {
+            std::cerr << "Error: " << error.what() << '\n';
+        }
     }
 
     return 0;
